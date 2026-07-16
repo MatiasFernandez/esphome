@@ -14,3 +14,4 @@ climate:
     transmitter_id: xmitr
     sensor: climate_ir_lg_temp_sensor
     humidity_sensor: humidity_sensor
+    reset_swing_when_off: false

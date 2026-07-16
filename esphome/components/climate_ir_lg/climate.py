@@ -12,6 +12,7 @@ CONF_HEADER_LOW = "header_low"
 CONF_BIT_HIGH = "bit_high"
 CONF_BIT_ONE_LOW = "bit_one_low"
 CONF_BIT_ZERO_LOW = "bit_zero_low"
+CONF_RESET_SWING_WHEN_OFF = "reset_swing_when_off"
 
 CONFIG_SCHEMA = climate_ir.climate_ir_with_receiver_schema(LgIrClimate).extend(
     {
@@ -30,6 +31,7 @@ CONFIG_SCHEMA = climate_ir.climate_ir_with_receiver_schema(LgIrClimate).extend(
         cv.Optional(
             CONF_BIT_ZERO_LOW, default="550us"
         ): cv.positive_time_period_microseconds,
+        cv.Optional(CONF_RESET_SWING_WHEN_OFF, default=True): cv.boolean,
     }
 )
 
@@ -42,3 +44,4 @@ async def to_code(config):
     cg.add(var.set_bit_high(config[CONF_BIT_HIGH]))
     cg.add(var.set_bit_one_low(config[CONF_BIT_ONE_LOW]))
     cg.add(var.set_bit_zero_low(config[CONF_BIT_ZERO_LOW]))
+    cg.add(var.set_reset_swing_when_off(config[CONF_RESET_SWING_WHEN_OFF]))

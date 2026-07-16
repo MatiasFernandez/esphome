@@ -3,6 +3,19 @@
 
 namespace esphome::climate_ir_lg::testing {
 
+namespace {
+
+void init_timings(LgIrClimate &sut, MockRemoteTransmitter &transmitter) {
+  sut.set_transmitter(&transmitter);
+  sut.set_header_high(8000);
+  sut.set_header_low(4000);
+  sut.set_bit_high(600);
+  sut.set_bit_one_low(1600);
+  sut.set_bit_zero_low(550);
+}
+
+}  // namespace
+
 // The swing command is a distinct, self-contained IR code: the real remote transmits it
 // on its own, independent of the unit's current mode, target temperature, or fan speed.
 TEST(LgIrClimateTests, SwingCommandIsIndependentOfClimateState) {
@@ -10,12 +23,7 @@ TEST(LgIrClimateTests, SwingCommandIsIndependentOfClimateState) {
 
   LgIrClimate sut;
   MockRemoteTransmitter transmitter;
-  sut.set_transmitter(&transmitter);
-  sut.set_header_high(8000);
-  sut.set_header_low(4000);
-  sut.set_bit_high(600);
-  sut.set_bit_one_low(bit_one_low);
-  sut.set_bit_zero_low(550);
+  init_timings(sut, transmitter);
 
   // Put the unit in a distinctive state (COOL, non-default temperature and fan speed) to prove
   // the swing command below is transmitted independently of it.
@@ -38,6 +46,45 @@ TEST(LgIrClimateTests, SwingCommandIsIndependentOfClimateState) {
 
   // The swing command is always this exact fixed code, regardless of climate state.
   EXPECT_EQ(transmitted, 0x8810001u);
+}
+
+// Older LG units forget swing when powered off, so by default turning the unit off should also
+// reset our tracked swing_mode back to OFF, mirroring that hardware behavior.
+TEST(LgIrClimateTests, ResetSwingWhenOffDefaultsToTrue) {
+  LgIrClimate sut;
+  MockRemoteTransmitter transmitter;
+  init_timings(sut, transmitter);
+
+  climate::ClimateCall on_call(&sut);
+  on_call.set_mode(climate::CLIMATE_MODE_COOL);
+  on_call.set_swing_mode(climate::CLIMATE_SWING_VERTICAL);
+  sut.control(on_call);
+
+  climate::ClimateCall off_call(&sut);
+  off_call.set_mode(climate::CLIMATE_MODE_OFF);
+  sut.control(off_call);
+
+  EXPECT_EQ(sut.swing_mode, climate::CLIMATE_SWING_OFF);
+}
+
+// Newer LG units remember swing across a power cycle, so with reset_swing_when_off disabled,
+// turning the unit off must leave our tracked swing_mode untouched instead of forcing it to OFF.
+TEST(LgIrClimateTests, ResetSwingWhenOffDisabledPreservesSwing) {
+  LgIrClimate sut;
+  MockRemoteTransmitter transmitter;
+  init_timings(sut, transmitter);
+  sut.set_reset_swing_when_off(false);
+
+  climate::ClimateCall on_call(&sut);
+  on_call.set_mode(climate::CLIMATE_MODE_COOL);
+  on_call.set_swing_mode(climate::CLIMATE_SWING_VERTICAL);
+  sut.control(on_call);
+
+  climate::ClimateCall off_call(&sut);
+  off_call.set_mode(climate::CLIMATE_MODE_OFF);
+  sut.control(off_call);
+
+  EXPECT_EQ(sut.swing_mode, climate::CLIMATE_SWING_VERTICAL);
 }
 
 }  // namespace esphome::climate_ir_lg::testing
